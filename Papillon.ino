@@ -18,6 +18,30 @@
  * @copyright 2019 par Marc SIBERT
  * @author Marc SIBERT <marc@sibert.fr>
  */
+#include <avr/sleep.h>
+#include "ws2812b.h"
+
+long readVcc() { 
+
+  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1); // Read 1.1V reference against AVcc 
+  ADCSRA = _BV(ADEN) | _BV(ADATE) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);  // ADC on, Auto Triggering on, prescaler = 1 / 128
+  ADCSRB = 0;
+
+  delay(2); // Wait for Vref to settle 
+  
+  unsigned long a = 0;
+  ADCSRA |= _BV(ADSC);
+  for (byte i = 0; i < 8; ++i) {
+    while (!bit_is_set(ADCSRA, ADIF));
+    ADCSRA |= _BV(ADIF);
+    a += ADCL + 256U * ADCH;
+  }
+  ADCSRA &= !_BV(ADEN);
+  
+  //return a;
+  return 1126400L * 8 / a; // Back-calculate AVcc in mV
+}
+
 
 /**
  * Distribution normale centrée.
@@ -29,146 +53,28 @@ byte f(const float x) {
   return 255 * exp( -sq( x / 2.0f / 0.5f ) );
 }
 
-/**
- * Classe modélisant une ligne de LEDs RGB WS2812.
- * 
- * @tparam PIN est le bit du PORT B utilisé pour commander la ligne de LEDs
- * @tparam LEN est la longueur de la ligne de LEDs
- */
-template<byte PIN = 1, byte LEN = 1>
-class Line {
-
-public:
-/**
- * Structure regroupant les valeurs Red, Green, Blue.
- */
-  struct rgb_t {
-    byte r;
-    byte g;
-    byte b;
-  };
-  
-/**
- * À appeler à l'initialisation de l'application.
- * 
- * Initialise le port de sortie.
- */
-  void setup() {
-    DDRB |= _BV(PIN);  
-  }
-
-/**
- * Définit le triplet de la LED indiquée.
- * 
- * @warning Il s'agit d'une copie en mémoire. Pour être effectivement appliquée, il faut utiliser la méthode flush()
- * 
- * @param pos Position de la LED dans la ligne [0..n-1]
- * @param rgb Une référence sur les valeurs à appliquer à cette LED
- */
-  void setRGB(const byte pos, const rgb_t& rgb) {
-    if (pos < LEN) data[pos] = rgb;
-  }
-
-/**
- * Applique l'ensemble des triplets mémorisés sur la ligne de LEDs.
- * 
- * @warning pendant la transmission, les interruptions sont désactivées.
- */
-  void flush() const {
-    PORTB = 0;
-    delayMicroseconds(50);
-    for (unsigned i = 0; i < LEN; ++i) { 
-      sendRGB(data[i]);
-    }
-  }
-
-protected:
-#define NOP1 "nop\n\t" 
-#define NOP2 NOP1 NOP1 
-#define NOP5 NOP2 NOP2 NOP1
-
-/**
- * Transmet un bit modulé sur la ligne pré-définie.
- * 
- * @warning Cette méthode est définie pour une fréquence de processeur de 16 MHz.
- * 
- * @param b Un booléen indiqauant l'état du bit à transmettre.
- */
-  inline 
-  void sendBit(const bool b) const {
-    PORTB |= _BV(PIN);
-    __asm__(NOP2);
-    PORTB &= b ? 0x0FF : !_BV(PIN);
-    __asm__(NOP5);
-    PORTB &= !_BV(PIN);
-  }
-
-/**
- * Transmet le triplet de couleurs vers la ligne.
- * 
- * @warning Cette méthode désactive ponctuellement les interruptions.
- * 
- * @param rgb Un triplet de couleurs.
- */
-  void sendRGB(const rgb_t& rgb) const {
-    cli();
-    sendBit(0x80 & rgb.r); 
-    sendBit(0x40 & rgb.r); 
-    sendBit(0x20 & rgb.r); 
-    sendBit(0x10 & rgb.r); 
-    sendBit(0x08 & rgb.r); 
-    sendBit(0x04 & rgb.r); 
-    sendBit(0x02 & rgb.r); 
-    sendBit(0x01 & rgb.r); 
-    sei();
-  
-    cli();
-    sendBit(0x80 & rgb.g); 
-    sendBit(0x40 & rgb.g); 
-    sendBit(0x20 & rgb.g); 
-    sendBit(0x10 & rgb.g); 
-    sendBit(0x08 & rgb.g); 
-    sendBit(0x04 & rgb.g); 
-    sendBit(0x02 & rgb.g); 
-    sendBit(0x01 & rgb.g); 
-    sei();
-  
-    cli();
-    sendBit(0x80 & rgb.b); 
-    sendBit(0x40 & rgb.b); 
-    sendBit(0x20 & rgb.b); 
-    sendBit(0x10 & rgb.b); 
-    sendBit(0x08 & rgb.b); 
-    sendBit(0x04 & rgb.b); 
-    sendBit(0x02 & rgb.b); 
-    sendBit(0x01 & rgb.b); 
-    sei();
-  }
-  
-private:
-/// Zone mémoire concervant les triplets de couleur de chaque LED de la ligne.
-  rgb_t data[LEN];
-  
-};
-
-
-Line<0,10> line1;
-Line<1,10> line2;
+WS2812b<0,10> line1;
+WS2812b<1,10> line2;
 
 
 void setup() {
-#if 0  
+#if 1  
   Serial.begin(250000);
   while (!Serial) ;
   Serial.println(F("Setup"));
-  Serial.flush();
+  Serial.println(readVcc());
 #endif
 
   line1.setup();
+  line1.flush();
   line2.setup();
+  line2.flush();
+  delay(5000);
 }
 
 void loop() {
+  Serial.println(readVcc());
+
   static unsigned t = 0;
 
   for (byte i = 0; i < 10; ++i) {

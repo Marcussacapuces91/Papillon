@@ -19,8 +19,6 @@
  * @author Marc SIBERT <marc@sibert.fr>
  */
 
-// #if 
-
  /**
  * Classe modélisant une ligne de LEDs RGB WS2812.
  * 
@@ -67,7 +65,7 @@ public:
  * @warning pendant la transmission, les interruptions sont désactivées.
  */
   void flush() const {
-    PORTB = 0;
+    PORTB &= !_BV(PIN);
     delayMicroseconds(50);
     for (unsigned i = 0; i < LEN; ++i) { 
       sendRGB(data[i]);

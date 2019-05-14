@@ -53,7 +53,12 @@ byte f(const float x) {
   return 255 * exp( -sq( x / 2.0f / 0.5f ) );
 }
 
-WS2812b<0,20> line;
+#define NB_LEDS 24
+
+WS2812b<0,24> line0;
+WS2812b<1,6> line1;
+WS2812b<2,6> line2;
+WS2812b<3,24> line3;
 
 
 void setup() {
@@ -64,25 +69,47 @@ void setup() {
   Serial.println(readVcc());
 #endif
 
-  line.setup();
-  line.flush();
-  delay(5000);
+  line0.setup();
+  line1.setup();
+  line2.setup();
+  line3.setup();
 }
 
 void loop() {
 //  Serial.println(readVcc());
 
-  static unsigned t = 0;
-
-  for (byte i = 0; i < 20; ++i) {
-    line.setRGB(i, { 
-      f(((i*10L + t) % 70) / 10.0f - 4),
-      f(((i*10L - t + 65535) % 100) / 15.0f - 4),
-      0,
+  static unsigned long long t = 0;
+  
+  for (byte i = 0; i < NB_LEDS; ++i) {
+    line0.setRGB(i, { 
+      f(((i*10L + t*10) % 70) / 10.0f - 4),
+      f(((i*10L - t*10 + 65535L*65536) % 100) / 10.0f - 4),
+      0
+    });
+    line3.setRGB(23-i, { 
+      f(((i*10L + t*10) % 70) / 10.0f - 4),
+      f(((i*10L - t*10 + 65535L*65536) % 100) / 10.0f - 4),
+      0
     });
   };
+  line0.flush();
+  line3.flush();
 
-  line.flush();
+  
+  for (byte i = 0; i < 6; ++i) {
+    line1.setRGB(i, {
+        (sin(t/25.0) + 1) * 127,
+        (cos(t/25.0) + 1) * 127,
+        0
+    });
+    line2.setRGB(i, {
+        (sin(t/25.0) + 1) * 127,
+        (cos(t/25.0) + 1) * 127,
+        0
+    });
+  }
+  line1.flush();
+  line2.flush();
 
   ++t;
   delay(10);

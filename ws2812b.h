@@ -102,17 +102,6 @@ protected:
  */
   void sendRGB(const rgb_t& rgb) const {
     cli();
-    sendBit(0x80 & rgb.r); 
-    sendBit(0x40 & rgb.r); 
-    sendBit(0x20 & rgb.r); 
-    sendBit(0x10 & rgb.r); 
-    sendBit(0x08 & rgb.r); 
-    sendBit(0x04 & rgb.r); 
-    sendBit(0x02 & rgb.r); 
-    sendBit(0x01 & rgb.r); 
-    sei();
-  
-    cli();
     sendBit(0x80 & rgb.g); 
     sendBit(0x40 & rgb.g); 
     sendBit(0x20 & rgb.g); 
@@ -121,6 +110,17 @@ protected:
     sendBit(0x04 & rgb.g); 
     sendBit(0x02 & rgb.g); 
     sendBit(0x01 & rgb.g); 
+    sei();
+  
+    cli();
+    sendBit(0x80 & rgb.r); 
+    sendBit(0x40 & rgb.r); 
+    sendBit(0x20 & rgb.r); 
+    sendBit(0x10 & rgb.r); 
+    sendBit(0x08 & rgb.r); 
+    sendBit(0x04 & rgb.r); 
+    sendBit(0x02 & rgb.r); 
+    sendBit(0x01 & rgb.r); 
     sei();
   
     cli();
